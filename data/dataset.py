@@ -109,11 +109,11 @@ class HerbariumFieldDataset(Dataset):
                         samples.append((full_path, class_id, domain_label))
         
         elif self.split == 'test':
-            test_list = os.path.join(self.data_dir, 'list', 'test.txt')
-            test_dir = os.path.join(self.data_dir, 'test')
+            # Use groundtruth.txt which has labels for test set
+            groundtruth_file = os.path.join(self.data_dir, 'list', 'groundtruth.txt')
             
             # Test set only contains field images
-            with open(test_list, 'r') as f:
+            with open(groundtruth_file, 'r') as f:
                 for line in f:
                     if not line.strip():
                         continue
@@ -121,13 +121,13 @@ class HerbariumFieldDataset(Dataset):
                     if len(parts) != 2:
                         continue
                     
-                    filename, class_id = parts
+                    rel_path, class_id = parts
                     class_id = class_id.strip()
                     
                     if class_id not in self.class_to_idx:
                         continue
                     
-                    full_path = os.path.join(test_dir, filename)
+                    full_path = os.path.join(self.data_dir, rel_path)
                     if os.path.exists(full_path):
                         samples.append((full_path, class_id, 1))  # domain_label=1 for field
         

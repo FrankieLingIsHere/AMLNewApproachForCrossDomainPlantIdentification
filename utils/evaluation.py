@@ -234,8 +234,9 @@ class Evaluator:
         plt.title('Confusion Matrix', fontsize=16)
         plt.ylabel('True Label', fontsize=14)
         plt.xlabel('Predicted Label', fontsize=14)
-        plt.xticks(tick_marks, labels, rotation=45)
-        plt.yticks(tick_marks, labels, rotation=0)
+        if len(tick_marks) == len(labels):
+            plt.xticks(tick_marks, [labels[i] for i in tick_marks], rotation=45)
+            plt.yticks(tick_marks, [labels[i] for i in tick_marks], rotation=0)
         
         plt.tight_layout()
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
