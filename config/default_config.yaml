@@ -1,0 +1,76 @@
+# Default Configuration for Cross-Domain Plant Classification
+
+# Data settings
+data:
+  data_dir: "Herbarium_Field"
+  num_classes: 100
+  num_paired_classes: 60
+  num_unpaired_classes: 40
+  batch_size: 32
+  num_workers: 4
+  balance_domains: true
+  pin_memory: true
+
+# Model settings
+model:
+  backbone: "dinov2-vit-b"  # Options: dinov2-vit-b, dinov2-vit-l, dinov2-vit-s, resnet50, efficientnet-b3
+  pretrained: true
+  freeze_backbone: false
+  unfreeze_epoch: 5
+  gradient_checkpointing: false
+  dropout: 0.1
+
+# Training settings
+training:
+  epochs: 100
+  lr: 0.0001
+  weight_decay: 0.0001
+  optimizer: "adamw"  # Options: adam, adamw, sgd
+  scheduler: "cosine"  # Options: cosine, step, plateau
+  warmup_epochs: 5
+  training_mode: "multi_stage"  # Options: multi_stage, single_stage
+  start_stage: 1
+  mixed_precision: true
+  gradient_clip: 1.0
+  early_stopping: true
+  patience: 15
+
+# Loss weights
+loss:
+  alpha: 1.0    # Classification loss weight
+  beta: 0.5     # Contrastive loss weight
+  gamma: 0.3    # Prototypical loss weight
+  delta: 0.1    # Domain adversarial loss weight
+  temperature: 0.07  # Temperature for contrastive learning
+  
+# Augmentation settings
+augmentation:
+  strength: "medium"  # Options: weak, medium, strong
+  use_mixup: false
+  mixup_alpha: 0.2
+  use_cutmix: false
+  cutmix_alpha: 1.0
+  herbarium_strong_aug: true
+  
+# Evaluation settings
+evaluation:
+  eval_interval: 5
+  save_interval: 5
+  top_k: [1, 3, 5]
+  save_confusion_matrix: true
+  
+# Logging settings
+logging:
+  output_dir: "results"
+  checkpoint_dir: "checkpoints"
+  log_interval: 10
+  use_tensorboard: true
+  use_wandb: false
+  
+# Device settings
+device:
+  cuda: true
+  device_id: 0
+  
+# Reproducibility
+seed: 42
