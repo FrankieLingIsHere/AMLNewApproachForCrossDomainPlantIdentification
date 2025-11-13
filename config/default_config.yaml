@@ -29,7 +29,9 @@ training:
   scheduler: "cosine"  # Options: cosine, step, plateau
   warmup_epochs: 5
   training_mode: "multi_stage"  # Options: multi_stage, single_stage
-  start_stage: 1
+  start_stage: 1  # Starting stage (1-4)
+  end_stage: 4    # Ending stage (1-4) - allows training specific stage ranges
+  epochs_per_stage: 25  # Number of epochs per stage in multi-stage training
   mixed_precision: true
   gradient_clip: 1.0
   early_stopping: true

@@ -109,21 +109,45 @@ python evaluate.py \
 
 ### Multi-Stage Training
 
-**Stage 1** (Epochs 0-24): Classification only
+The training process can be configured to run in stages, where different loss components are activated progressively. You can train all stages sequentially or focus on specific stages.
+
+**Stage 1**: Classification only
 - Train on herbarium images
 - Learn basic feature representations
+- Active loss: Classification
 
-**Stage 2** (Epochs 25-49): Add contrastive learning
+**Stage 2**: Add contrastive learning
 - Align herbarium and field features for paired classes
 - Encourage cross-domain similarity
+- Active losses: Classification + Contrastive
 
-**Stage 3** (Epochs 50-74): Add prototypical learning
+**Stage 3**: Add prototypical learning
 - Handle unpaired classes with prototype-based classification
 - Refine prototypes transductively
+- Active losses: Classification + Contrastive + Prototypical
 
-**Stage 4** (Epochs 75-99): Full end-to-end
+**Stage 4**: Full end-to-end
 - Enable domain adversarial training
 - Fine-tune all components together
+- Active losses: Classification + Contrastive + Prototypical + Domain Adversarial
+
+#### Flexible Stage Training
+
+You can now train specific stages without waiting for previous stages to complete:
+
+```bash
+# Train only stage 3 (useful for testing prototypical learning)
+python train.py --start_stage 3 --end_stage 3 --epochs 50
+
+# Train stages 2-4 (skip stage 1)
+python train.py --start_stage 2 --end_stage 4 --epochs 75
+
+# Train all stages with custom epochs per stage
+python train.py --start_stage 1 --end_stage 4 --epochs_per_stage 30 --epochs 120
+
+# Train only stage 4 (full model)
+python train.py --start_stage 4 --end_stage 4 --epochs 100
+```
 
 ## 📋 Command Line Arguments
 
@@ -148,6 +172,9 @@ python evaluate.py \
 - `--optimizer`: Optimizer choice (default: `adamw`)
 - `--scheduler`: LR scheduler (default: `cosine`)
 - `--training_mode`: `multi_stage` or `single_stage`
+- `--start_stage`: Starting stage for multi-stage training (1-4, default: `1`)
+- `--end_stage`: Ending stage for multi-stage training (1-4, default: `4`)
+- `--epochs_per_stage`: Number of epochs per stage (default: `25`)
 - `--mixed_precision`: Use AMP for faster training
 - `--early_stopping`: Enable early stopping
 - `--patience`: Early stopping patience (default: `15`)
