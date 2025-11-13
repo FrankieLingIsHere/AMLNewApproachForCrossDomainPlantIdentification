@@ -215,8 +215,19 @@ def create_scheduler(optimizer, args, steps_per_epoch):
     return scheduler
 
 
-def load_class_indices(data_dir):
-    """Load paired and unpaired class indices."""
+def load_class_indices(data_dir, class_to_idx=None):
+    """
+    Load paired and unpaired class indices.
+    
+    Args:
+        data_dir: Path to data directory
+        class_to_idx: Optional class to index mapping from dataset.
+                     If provided, uses this mapping instead of creating a new one.
+                     This ensures consistency with the dataset's label encoding.
+    
+    Returns:
+        Tuple of (paired_indices, unpaired_indices)
+    """
     paired_file = os.path.join(data_dir, 'list', 'class_with_pairs.txt')
     unpaired_file = os.path.join(data_dir, 'list', 'class_without_pairs.txt')
     
@@ -226,12 +237,14 @@ def load_class_indices(data_dir):
     with open(unpaired_file, 'r') as f:
         unpaired_classes = [line.strip() for line in f if line.strip()]
     
-    # Create mapping to indices
-    all_classes = sorted(paired_classes + unpaired_classes)
-    class_to_idx = {cls: idx for idx, cls in enumerate(all_classes)}
+    # Use provided class_to_idx or create one
+    if class_to_idx is None:
+        # Create mapping to indices (fallback for backward compatibility)
+        all_classes = sorted(paired_classes + unpaired_classes)
+        class_to_idx = {cls: idx for idx, cls in enumerate(all_classes)}
     
-    paired_indices = [class_to_idx[cls] for cls in paired_classes]
-    unpaired_indices = [class_to_idx[cls] for cls in unpaired_classes]
+    paired_indices = [class_to_idx[cls] for cls in paired_classes if cls in class_to_idx]
+    unpaired_indices = [class_to_idx[cls] for cls in unpaired_classes if cls in class_to_idx]
     
     return paired_indices, unpaired_indices
 
@@ -329,11 +342,7 @@ def main():
     logger.info("=" * 80)
     logger.info(f"Arguments: {vars(args)}")
     
-    # Load class indices
-    paired_indices, unpaired_indices = load_class_indices(args.data_dir)
-    logger.info(f"Paired classes: {len(paired_indices)}, Unpaired classes: {len(unpaired_indices)}")
-    
-    # Create dataloaders
+    # Create dataloaders first
     logger.info("Creating dataloaders...")
     train_loader, test_loader = create_dataloaders(
         data_dir=args.data_dir,
@@ -345,6 +354,40 @@ def main():
     )
     
     logger.info(f"Train batches: {len(train_loader)}, Test batches: {len(test_loader)}")
+    
+    # Get class_to_idx from dataset (authoritative source for label mapping)
+    dataset_class_to_idx = train_loader.dataset.class_to_idx
+    logger.info(f"Dataset has {len(dataset_class_to_idx)} classes")
+    
+    # Load class indices using the dataset's class_to_idx mapping
+    # This ensures paired/unpaired indices match the actual labels from the dataset
+    paired_indices, unpaired_indices = load_class_indices(args.data_dir, class_to_idx=dataset_class_to_idx)
+    logger.info(f"Paired classes: {len(paired_indices)}, Unpaired classes: {len(unpaired_indices)}")
+    
+    # Debug: verify label distribution
+    logger.info("Verifying dataset label distribution...")
+    all_labels = []
+    all_domains = []
+    for batch_idx, batch in enumerate(train_loader):
+        if batch_idx >= 10:  # Check first 10 batches
+            break
+        _, labels, domains, _ = batch
+        all_labels.extend(labels.tolist())
+        all_domains.extend(domains.tolist())
+    
+    unique_labels = set(all_labels)
+    paired_count = sum(1 for l in all_labels if l in paired_indices)
+    unpaired_count = sum(1 for l in all_labels if l in unpaired_indices)
+    herbarium_count = sum(1 for d in all_domains if d == 0)
+    field_count = sum(1 for d in all_domains if d == 1)
+    
+    logger.info(f"Sample from first 10 batches: {len(all_labels)} total samples")
+    logger.info(f"  Unique labels: {len(unique_labels)}")
+    logger.info(f"  Paired class samples: {paired_count}")
+    logger.info(f"  Unpaired class samples: {unpaired_count}")
+    logger.info(f"  Herbarium samples: {herbarium_count}")
+    logger.info(f"  Field samples: {field_count}")
+
     
     # Create model
     logger.info(f"Creating model with backbone: {args.backbone}")

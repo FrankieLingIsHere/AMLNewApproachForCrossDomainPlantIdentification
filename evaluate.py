@@ -57,8 +57,19 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_class_indices(data_dir):
-    """Load paired and unpaired class indices."""
+def load_class_indices(data_dir, class_to_idx=None):
+    """
+    Load paired and unpaired class indices.
+    
+    Args:
+        data_dir: Path to data directory
+        class_to_idx: Optional class to index mapping from dataset.
+                     If provided, uses this mapping instead of creating a new one.
+                     This ensures consistency with the dataset's label encoding.
+    
+    Returns:
+        Tuple of (paired_indices, unpaired_indices, all_classes)
+    """
     paired_file = os.path.join(data_dir, 'list', 'class_with_pairs.txt')
     unpaired_file = os.path.join(data_dir, 'list', 'class_without_pairs.txt')
     
@@ -68,12 +79,17 @@ def load_class_indices(data_dir):
     with open(unpaired_file, 'r') as f:
         unpaired_classes = [line.strip() for line in f if line.strip()]
     
-    # Create mapping to indices
-    all_classes = sorted(paired_classes + unpaired_classes)
-    class_to_idx = {cls: idx for idx, cls in enumerate(all_classes)}
+    # Use provided class_to_idx or create one
+    if class_to_idx is None:
+        # Create mapping to indices (fallback for backward compatibility)
+        all_classes = sorted(paired_classes + unpaired_classes)
+        class_to_idx = {cls: idx for idx, cls in enumerate(all_classes)}
+    else:
+        # Get all classes from the provided mapping
+        all_classes = sorted(class_to_idx.keys(), key=lambda x: class_to_idx[x])
     
-    paired_indices = [class_to_idx[cls] for cls in paired_classes]
-    unpaired_indices = [class_to_idx[cls] for cls in unpaired_classes]
+    paired_indices = [class_to_idx[cls] for cls in paired_classes if cls in class_to_idx]
+    unpaired_indices = [class_to_idx[cls] for cls in unpaired_classes if cls in class_to_idx]
     
     return paired_indices, unpaired_indices, all_classes
 
@@ -139,11 +155,7 @@ def main():
     logger.info(f"Checkpoint: {args.checkpoint_path}")
     logger.info(f"Backbone: {args.backbone}")
     
-    # Load class indices
-    paired_indices, unpaired_indices, class_names = load_class_indices(args.data_dir)
-    logger.info(f"Paired classes: {len(paired_indices)}, Unpaired classes: {len(unpaired_indices)}")
-    
-    # Create dataloaders
+    # Create dataloaders first
     logger.info("Creating dataloaders...")
     _, test_loader = create_dataloaders(
         data_dir=args.data_dir,
@@ -155,6 +167,15 @@ def main():
     )
     
     logger.info(f"Test batches: {len(test_loader)}")
+    
+    # Get class_to_idx from dataset (authoritative source for label mapping)
+    dataset_class_to_idx = test_loader.dataset.class_to_idx
+    logger.info(f"Dataset has {len(dataset_class_to_idx)} classes")
+    
+    # Load class indices using the dataset's class_to_idx mapping
+    # This ensures paired/unpaired indices match the actual labels from the dataset
+    paired_indices, unpaired_indices, class_names = load_class_indices(args.data_dir, class_to_idx=dataset_class_to_idx)
+    logger.info(f"Paired classes: {len(paired_indices)}, Unpaired classes: {len(unpaired_indices)}")
     
     # Load model
     logger.info(f"Loading model from {args.checkpoint_path}")
