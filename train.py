@@ -73,6 +73,11 @@ def parse_args():
     parser.add_argument('--start_stage', type=int, default=1,
                        choices=[1, 2, 3, 4],
                        help='Starting stage for multi-stage training')
+    parser.add_argument('--end_stage', type=int, default=4,
+                       choices=[1, 2, 3, 4],
+                       help='Ending stage for multi-stage training (allows training specific stage ranges)')
+    parser.add_argument('--epochs_per_stage', type=int, default=25,
+                       help='Number of epochs per stage in multi-stage training')
     parser.add_argument('--mixed_precision', action='store_true',
                        help='Use automatic mixed precision')
     parser.add_argument('--gradient_clip', type=float, default=1.0,
@@ -315,6 +320,10 @@ def train_epoch(model, train_loader, criterion, optimizer, scheduler, scaler, de
 def main():
     args = parse_args()
     
+    # Validate stage arguments
+    if args.training_mode == 'multi_stage' and args.start_stage > args.end_stage:
+        raise ValueError(f"start_stage ({args.start_stage}) cannot be greater than end_stage ({args.end_stage})")
+    
     # Set seed
     set_seed(args.seed)
     
@@ -436,24 +445,42 @@ def main():
     
     # Training loop
     logger.info("Starting training...")
+    logger.info(f"Training mode: {args.training_mode}")
+    if args.training_mode == 'multi_stage':
+        logger.info(f"Stage range: {args.start_stage} to {args.end_stage}")
+        logger.info(f"Epochs per stage: {args.epochs_per_stage}")
+    
     patience_counter = 0
     
     for epoch in range(start_epoch, args.epochs):
         # Update stage in multi-stage training
         current_stage = args.start_stage
         if args.training_mode == 'multi_stage':
-            if epoch < 25:
-                current_stage = 1
-            elif epoch < 50:
-                current_stage = 2
-            elif epoch < 75:
-                current_stage = 3
-            else:
-                current_stage = 4
+            # Calculate which stage we're in based on epoch and epochs_per_stage
+            # Only progress through stages in the requested range [start_stage, end_stage]
+            num_stages_to_train = args.end_stage - args.start_stage + 1
             
+            if num_stages_to_train == 1:
+                # Training only one specific stage - stay in that stage
+                current_stage = args.start_stage
+            else:
+                # Training multiple stages - distribute epochs across them
+                epochs_per_stage_actual = args.epochs_per_stage
+                stage_index = min(epoch // epochs_per_stage_actual, num_stages_to_train - 1)
+                current_stage = args.start_stage + stage_index
+            
+            # Set the stage on the model at stage transitions
             if hasattr(model, 'set_stage'):
-                if epoch in [0, 25, 50, 75]:
+                # Check if we're at a stage boundary
+                if num_stages_to_train > 1:
+                    stage_boundary_epochs = [i * args.epochs_per_stage for i in range(num_stages_to_train)]
+                    if epoch in stage_boundary_epochs:
+                        model.set_stage(current_stage)
+                        logger.info(f"Epoch {epoch}: Transitioning to stage {current_stage}")
+                elif epoch == start_epoch:
+                    # For single-stage training, set stage at the beginning
                     model.set_stage(current_stage)
+                    logger.info(f"Epoch {epoch}: Training in stage {current_stage} only")
         
         # Update GRL lambda for domain adversarial training
         if hasattr(model, 'model'):

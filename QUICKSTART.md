@@ -30,6 +30,32 @@ python train.py --backbone dinov2-vit-b --batch_size 32 --mixed_precision --earl
 python train.py --backbone dinov2-vit-l --batch_size 64 --mixed_precision --use_mixup --augmentation_strength strong
 ```
 
+### Stage-Specific Training
+
+**Test a specific stage independently:**
+```bash
+# Test only stage 3 (prototypical learning)
+python train.py --start_stage 3 --end_stage 3 --epochs 50 --batch_size 32
+
+# Test only stage 4 (full model with domain adversarial)
+python train.py --start_stage 4 --end_stage 4 --epochs 50
+```
+
+**Train a subset of stages:**
+```bash
+# Skip stage 1, train stages 2-4
+python train.py --start_stage 2 --end_stage 4 --epochs 75 --epochs_per_stage 25
+
+# Train only stages 1-2
+python train.py --start_stage 1 --end_stage 2 --epochs 60 --epochs_per_stage 30
+```
+
+**Custom stage duration:**
+```bash
+# Train all stages with 30 epochs each
+python train.py --start_stage 1 --end_stage 4 --epochs_per_stage 30 --epochs 120
+```
+
 ## Evaluation
 
 ```bash
@@ -49,6 +75,9 @@ python evaluate.py --checkpoint_path checkpoints/best_model.pth --backbone dinov
 - `--batch_size`: Batch size (default: 32)
 - `--lr`: Learning rate (default: 1e-4)
 - `--training_mode`: multi_stage or single_stage
+- `--start_stage`: Starting stage (1-4, default: 1)
+- `--end_stage`: Ending stage (1-4, default: 4)
+- `--epochs_per_stage`: Epochs per stage (default: 25)
 - `--mixed_precision`: Enable AMP
 - `--early_stopping`: Stop when no improvement
 
