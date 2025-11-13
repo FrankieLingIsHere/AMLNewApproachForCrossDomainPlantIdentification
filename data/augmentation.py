@@ -30,7 +30,7 @@ class HerbariumAugmentation:
                 A.Rotate(limit=20, p=0.5),
                 A.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1, p=0.5),
                 A.GaussianBlur(blur_limit=(3, 5), p=0.3),
-                A.CoarseDropout(max_holes=8, max_height=16, max_width=16, p=0.3),
+                A.CoarseDropout(num_holes_range=(4, 8), hole_height_range=(8, 16), hole_width_range=(8, 16), p=0.3),
                 A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                 ToTensorV2()
             ])
@@ -46,7 +46,7 @@ class HerbariumAugmentation:
                     A.GaussianBlur(blur_limit=(3, 7), p=1.0),
                     A.MotionBlur(blur_limit=5, p=1.0),
                 ], p=0.5),
-                A.CoarseDropout(max_holes=12, max_height=24, max_width=24, p=0.5),
+                A.CoarseDropout(num_holes_range=(6, 12), hole_height_range=(12, 24), hole_width_range=(12, 24), p=0.5),
                 A.RandomBrightnessContrast(p=0.5),
                 A.HueSaturationValue(p=0.5),
                 A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),

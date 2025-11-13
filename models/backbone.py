@@ -39,7 +39,7 @@ class BackboneLoader:
     
     @staticmethod
     def _load_dinov2(backbone_name: str, pretrained: bool, gradient_checkpointing: bool) -> Tuple[nn.Module, int]:
-        """Load DINOv2 model from torch.hub."""
+        """Load DINOv2 model with fallback handling."""
         # Map backbone names to model variants
         variant_map = {
             'dinov2-vit-s': 'dinov2_vits14',
@@ -52,12 +52,6 @@ class BackboneLoader:
         
         model_name = variant_map[backbone_name]
         
-        # Load from torch.hub
-        if pretrained:
-            model = torch.hub.load('facebookresearch/dinov2', model_name)
-        else:
-            model = torch.hub.load('facebookresearch/dinov2', model_name, pretrained=False)
-        
         # Get feature dimension
         feature_dim_map = {
             'dinov2_vits14': 384,
@@ -65,6 +59,59 @@ class BackboneLoader:
             'dinov2_vitl14': 1024,
         }
         feature_dim = feature_dim_map[model_name]
+        
+        # Try loading from timm first (more reliable), with fallback to torch.hub
+        model = None
+        import timm
+        
+        # Map to timm model names
+        timm_model_map = {
+            'dinov2_vits14': 'vit_small_patch14_dinov2.lvd142m',
+            'dinov2_vitb14': 'vit_base_patch14_dinov2.lvd142m',
+            'dinov2_vitl14': 'vit_large_patch14_dinov2.lvd142m',
+        }
+        
+        timm_model_name = timm_model_map.get(model_name)
+        
+        # Try with pretrained first, fall back to non-pretrained if download fails
+        if pretrained:
+            try:
+                print(f"Loading {timm_model_name} from timm with pretrained weights...")
+                model = timm.create_model(
+                    timm_model_name,
+                    pretrained=True,
+                    num_classes=0,  # Remove classifier head
+                    dynamic_img_size=True,  # Allow flexible image sizes
+                )
+                print(f"Successfully loaded pretrained model from timm")
+            except Exception as e:
+                print(f"Warning: Failed to load pretrained weights ({str(e)})")
+                print(f"Falling back to non-pretrained initialization...")
+                pretrained = False
+        
+        # If pretrained failed or was False, load without pretrained weights
+        if not pretrained:
+            try:
+                print(f"Loading {timm_model_name} from timm without pretrained weights...")
+                model = timm.create_model(
+                    timm_model_name,
+                    pretrained=False,
+                    num_classes=0,  # Remove classifier head
+                    dynamic_img_size=True,  # Allow flexible image sizes
+                )
+                print(f"Successfully loaded model without pretrained weights")
+            except Exception as e:
+                print(f"Warning: Failed to load from timm ({str(e)})")
+                # Last resort: try torch.hub
+                try:
+                    print(f"Trying torch.hub as last resort...")
+                    model = torch.hub.load('facebookresearch/dinov2', model_name, pretrained=False, trust_repo=True, skip_validation=True)
+                    print(f"Successfully loaded from torch.hub")
+                except Exception as hub_error:
+                    raise RuntimeError(f"Could not load DINOv2 model from timm or torch.hub: {str(hub_error)}")
+        
+        if model is None:
+            raise RuntimeError(f"Failed to load model {model_name}")
         
         # Enable gradient checkpointing if requested
         if gradient_checkpointing and hasattr(model, 'set_grad_checkpointing'):
