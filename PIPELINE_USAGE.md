@@ -20,13 +20,13 @@ Both pipelines provide:
 
 ### Features
 - Local SQLite database storage
-- No external dependencies or credentials needed
+- No external service credentials needed (uses local file)
 - Perfect for local development and testing
 - All data stored in a single `.db` file
 
 ### Installation
 ```bash
-# No additional dependencies needed beyond base requirements
+# Install base requirements (SQLite is included with Python)
 pip install -r requirements.txt
 ```
 

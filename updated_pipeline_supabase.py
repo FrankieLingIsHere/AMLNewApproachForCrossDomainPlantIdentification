@@ -83,8 +83,9 @@ class SupabaseStorage:
         response = self.client.table(self.experiments_table).insert(data).execute()
         
         if response.data and len(response.data) > 0:
-            exp_id = response.data[0].get('id') or response.data[0].get('exp_name')
-            return exp_id
+            # Supabase returns UUID as 'id' field
+            exp_id = response.data[0]['id']
+            return str(exp_id)
         else:
             raise Exception("Failed to create experiment in Supabase")
     
@@ -181,7 +182,7 @@ class SupabaseStorage:
         """Update experiment status.
         
         Args:
-            exp_id: Experiment ID
+            exp_id: Experiment ID (UUID)
             status: New status (running/completed/failed)
         """
         try:
@@ -189,13 +190,7 @@ class SupabaseStorage:
                 {'status': status, 'updated_at': datetime.utcnow().isoformat()}
             ).eq('id', exp_id).execute()
         except Exception as e:
-            # Try with exp_name if id doesn't work
-            try:
-                self.client.table(self.experiments_table).update(
-                    {'status': status, 'updated_at': datetime.utcnow().isoformat()}
-                ).eq('exp_name', exp_id).execute()
-            except Exception as e2:
-                print(f"Warning: Failed to update experiment status: {e2}")
+            print(f"Warning: Failed to update experiment status: {e}")
     
     def get_experiment_metrics(self, exp_id: str) -> List[Dict]:
         """Get all metrics for an experiment.
