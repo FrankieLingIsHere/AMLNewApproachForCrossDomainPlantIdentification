@@ -10,6 +10,7 @@ A complete PyTorch implementation for cross-domain plant classification, address
 - **Flexible Training**: Multi-stage or single-stage training modes
 - **Comprehensive Evaluation**: Top-k accuracy, confusion matrix, per-class metrics
 - **Production Ready**: Mixed precision, gradient checkpointing, early stopping
+- **Database Storage**: SQLite and Supabase pipelines for experiment tracking
 
 ## 📊 Dataset Structure
 
@@ -85,6 +86,31 @@ python evaluate.py \
     --checkpoint_path checkpoints/best_model.pth \
     --save_confusion_matrix
 ```
+
+### Updated Pipelines with Database Storage
+
+For advanced experiment tracking with database storage, use the updated pipelines:
+
+**SQLite (Local Storage)**
+```bash
+python updated_pipeline.py \
+    --backbone dinov2-vit-b \
+    --epochs 100 \
+    --db_path my_experiments.db
+```
+
+**Supabase (Cloud Storage)**
+```bash
+export SUPABASE_URL=https://your-project.supabase.co
+export SUPABASE_KEY=your-api-key
+
+python updated_pipeline_supabase.py \
+    --backbone dinov2-vit-b \
+    --epochs 100 \
+    --exp_name my_experiment
+```
+
+See [PIPELINE_USAGE.md](PIPELINE_USAGE.md) for detailed documentation.
 
 ## 🏗️ Architecture
 
